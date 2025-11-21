@@ -1,53 +1,55 @@
 from flask import Flask, render_template, request, send_file, jsonify
-import os
-import sys
-import socket
-import subprocess
+import os, shutil, socket, sys, subprocess
 import yt_dlp
 
-# ==================== অটো আপডেট yt-dlp ====================
+# ==================== yt-dlp auto-update ====================
 def auto_update_ytdlp():
-    print("yt-dlp চেক করা হচ্ছে... আপডেট হচ্ছে (যদি দরকার হয়)...")
     try:
-        subprocess.check_call([
-            sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp", "--quiet"
-        ])
-        import yt_dlp as ydl
-        print(f"yt-dlp আপডেট হয়েছে → ভার্সন: {ydl.version.__version__}")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp"])
+        import yt_dlp.version
+        print(f"yt-dlp updated to version: {yt_dlp.version.__version__}")
     except Exception as e:
-        print(f"yt-dlp আপডেটে সমস্যা: {e}")
+        print(f"yt-dlp auto-update failed: {e}")
 
-# ==================== Flask Setup ====================
+# ==================== Flask setup ====================
 app = Flask(__name__)
-DOWNLOAD_FOLDER = "downloads"
-os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
+last_files = {}  # {'mp4': path, 'mp3': path}
+DOWNLOAD_DIR = "downloads"
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# লোকাল IP বের করা
+# ==================== IP helper ====================
 def get_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
-    except:
+    except Exception:
         ip = "127.0.0.1"
     finally:
         s.close()
     return ip
 
-# হোম পেজ
-@app.route('/')
+# ==================== routes ====================
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
-# ভিডিও ইনফো ফেচ
-@app.route('/fetch_info', methods=['POST'])
+# Fetch title/channel/thumbnail/duration only (no download)
+@app.route("/fetch_info", methods=["POST"])
 def fetch_info():
-    url = request.json.get('url')
+    data = request.get_json(force=True) or {}
+    url = data.get("url")
     if not url:
-        return jsonify({"error": "URL দাও"}), 400
+        return jsonify({"error": "URL required"}), 400
 
     try:
-        ydl_opts = {'quiet': True, 'no_warnings': True}
+        ydl_opts = {
+            "quiet": True,
+            "no_warnings": True,
+            "noplaylist": True,
+            # reduce JS runtime warnings without installing Node
+            "extractor_args": {"youtube": {"player_client": ["default"]}},
+        }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             return jsonify({
@@ -57,42 +59,50 @@ def fetch_info():
                 "duration": info.get("duration", 0)
             })
     except Exception as e:
-        return jsonify({"error": "ভুল লিংক বা সমস্যা"}), 400
+        return jsonify({"error": f"{e}"}), 400
 
-# ==================== মূল ডাউনলোড রুট (ভিডিও/অডিও) ====================
-@app.route('/real_download')
-def real_download():
-    url = request.args.get('url')
-    type_ = request.args.get('type')        # mp4 or mp3
-    res = request.args.get('res', '1080')   # 1080, 720, audio ইত্যাদি
-    bitrate = request.args.get('bitrate', '192')
-    playlist = request.args.get('playlist') == '1'
+# Prepare download (video/audio) with resolution/bitrate
+@app.route("/prepare", methods=["POST"])
+def prepare():
+    data = request.get_json(force=True) or {}
+    url = data.get("url")
+    type_ = data.get("type", "mp4")        # "mp4" or "mp3"
+    res = str(data.get("res", "")).strip() # e.g., "360","720","1080","2160"
+    bitrate = str(data.get("bitrate", "192")).strip()  # e.g., "192","256","320","350"
 
     if not url:
-        return "URL নাই!", 400
+        return jsonify({"ready": False, "error": "URL required"}), 400
 
-    # ফরম্যাট সিলেক্ট করা
-    if type_ == 'mp3' or res == 'audio':
-        format_str = 'bestaudio/best'
+    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
+    # Build format string and postprocessors
+    if type_.lower() == "mp3":
+        format_str = "bestaudio/best"
         postprocessors = [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': bitrate,
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "mp3",
+            "preferredquality": bitrate,  # 192, 256, 320, 350
         }]
         merge_format = None
     else:
-        height = res if str(res).isdigit() else 1080
-        format_str = f'bestvideo[height<={height}]+bestaudio/bestvideo[height<={height}]/best'
+        # video mp4 with optional max height
+        if res.isdigit():
+            format_str = f"bestvideo[height<={res}]+bestaudio/best/best"
+        else:
+            format_str = "bestvideo+bestaudio/best"
         postprocessors = []
-        merge_format = 'mp4'
+        merge_format = "mp4"
 
     ydl_opts = {
-        'format': format_str,
-        'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
-        'noplaylist': not playlist,
-        'merge_output_format': merge_format,
-        'postprocessors': postprocessors,
-        'ignoreerrors': True,   # কোনো লিঙ্ক ফেল করলে বাদ যাবে না
+        "format": format_str,
+        "outtmpl": os.path.join(DOWNLOAD_DIR, "%(title)s.%(ext)s"),
+        "merge_output_format": merge_format,
+        "postprocessors": postprocessors,
+        "ignoreerrors": True,
+        "noplaylist": True,
+        "quiet": True,
+        # keep YouTube working without JS runtime
+        "extractor_args": {"youtube": {"player_client": ["default"]}},
     }
 
     try:
@@ -100,32 +110,40 @@ def real_download():
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
 
-            # MP3 হলে ফাইল এক্সটেনশন ঠিক করা
-            if type_ == 'mp3' or res == 'audio':
-                filename = filename.rsplit('.', 1)[0] + '.mp3'
+            # finalize mp3 filename if audio mode
+            if type_.lower() == "mp3":
+                filename = filename.rsplit(".", 1)[0] + ".mp3"
 
-            # ফাইল পাঠানো
-            return send_file(
-                filename,
-                as_attachment=True,
-                download_name=os.path.basename(filename)
-            )
+            # store last files
+            if type_.lower() == "mp4":
+                last_files["mp4"] = filename
+                # optional parallel mp3 generation from the same mp4 if requested via bitrate-only later
+            elif type_.lower() == "mp3":
+                last_files["mp3"] = filename
+
+        return jsonify({"ready": True})
     except Exception as e:
-        return f"<h2>এরর: {str(e)}</h2>", 500
+        return jsonify({"ready": False, "error": f"{e}"}), 500
 
-# ==================== সার্ভার চালু ====================
+# Download prepared file
+@app.route("/download")
+def download():
+    file_type = (request.args.get("type") or "").lower()
+    path = last_files.get(file_type)
+    if not path or not os.path.exists(path):
+        return "File not ready", 404
+    return send_file(path, as_attachment=True, download_name=os.path.basename(path))
+
+# ==================== run ====================
 if __name__ == "__main__":
-    auto_update_ytdlp()  # প্রতিবার চালালেই আপডেট চেক করবে
+    auto_update_ytdlp()
     ip = get_ip()
-    print(f"\nClassicTube চালু হয়েছে!")
-    print(f"লিংক: http://{ip}:5000")
-    print(f"ফাইল সেভ হবে: downloads ফোল্ডারে\n")
-
+    print(f"Flask server running at: http://{ip}:5000")
+    # optional: write IP for Android Termux convenience
     try:
         with open("/sdcard/flask_ip.txt", "w") as f:
             f.write(f"http://{ip}:5000")
-        print("IP সেভ হয়েছে /sdcard/flask_ip.txt এ")
-    except:
-        pass
-
-    app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
+        print("IP written to /sdcard/flask_ip.txt")
+    except Exception as e:
+        print(f"Could not write IP: {e}")
+    app.run(debug=True, host="0.0.0.0", port=5000)
