@@ -4,169 +4,56 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ClassicTube Pro</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #0d0d0d;
-            color: #fff;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            background: linear-gradient(135deg, #000000 0%, #1a1a2e 100%);
-        }
-        .container {
-            width: 100%;
-            max-width: 420px;
-            background: rgba(25, 25, 35, 0.95);
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
-            border: 1px solid #333;
-            backdrop-filter: blur(10px);
-        }
-        h1 {
-            font-family: 'Cinzel', serif;
-            font-size: 2.8rem;
-            text-align: center;
-            background: linear-gradient(45deg, #ffd700, #ffed99);
-            -webkit-background-clip: text;
-            color: transparent;
-            margin-bottom: 8px;
-        }
-        p.subtitle {
-            text-align: center;
-            opacity: 0.8;
-            font-size: 1rem;
-            margin-bottom: 20px;
-        }
-        .input-box {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-        input {
-            flex: 1;
-            padding: 16px;
-            border: 2px solid #444;
-            border-radius: 12px;
-            background: #1e1e2e;
-            color: #fff;
-            font-size: 1rem;
-        }
-        input:focus {
-            outline: none;
-            border-color: #ffd700;
-        }
-        button {
-            padding: 16px 24px;
-            border: none;
-            border-radius: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .btn-fetch {
-            background: linear-gradient(45deg, #ffd700, #ffed4e);
-            color: #000;
-        }
-        .btn-fetch:hover { transform: scale(1.05); }
-
-        .info-card {
-            margin: 25px 0;
-            text-align: center;
-        }
-        .info-card img {
-            width: 100%;
-            max-height: 200px;
-            object-fit: cover;
-            border-radius: 12px;
-            margin: 15px 0;
-        }
-        .info-card h3 {
-            font-size: 1.3rem;
-            margin: 10px 0;
-            color: #ffd700;
-        }
-        .options {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin: 20px 0;
-        }
-        select {
-            padding: 14px;
-            border-radius: 10px;
-            border: 2px solid #444;
-            background: #1e1e2e;
-            color: #fff;
-            font-size: 0.95rem;
-        }
-        .checkbox {
-            margin: 15px 0;
-            text-align: center;
-        }
-        .btn-group {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 20px;
-        }
-        .btn-dl {
-            padding: 18px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            border-radius: 12px;
-        }
-        .mp4 { background: linear-gradient(45deg, #00d0ff, #00ff9d); color: #000; }
-        .mp3 { background: linear-gradient(45deg, #ff0088, #ff6bc7); color: #fff; }
-        .btn-dl:hover { transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
-
-        .spinner {
-            width: 50px; height: 50px;
-            border: 5px solid #333;
-            border-top: 5px solid #ffd700;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 30px auto;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .hidden { display: none; }
-        footer {
-            text-align: center;
-            margin-top: 30px;
-            font-size: 0.9rem;
-            opacity: 0.7;
-        }
+        /* আগের সুন্দর স্টাইলই রাখলাম, শুধু কিছু ছোট পরিবর্তন */
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{background:linear-gradient(135deg,#000,#1a1a2e);color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:15px;font-family:'Inter',sans-serif;}
+        .container{max-width:420px;width:100%;background:rgba(25,25,35,0.95);border-radius:20px;padding:30px;box-shadow:0 20px 50px rgba(0,0,0,0.8);border:1px solid #333;backdrop-filter:blur(10px);}
+        h1{font-family:'Cinzel',serif;font-size:2.8rem;text-align:center;background:linear-gradient(45deg,#ffd700,#ffed99);-webkit-background-clip:text;color:transparent;}
+        .input-box{display:flex;gap:12px;margin:20px 0;}
+        input{flex:1;padding:16px;border:2px solid #444;border-radius:12px;background:#1e1e2e;color:#fff;font-size:1rem;}
+        button{padding:16px 24px;border:none;border-radius:12px;font-weight:600;cursor:pointer;background:linear-gradient(45deg,#ffd700,#ffed4e);color:#000;}
+        button:hover{transform:scale(1.05);}
+        .info-card img{width:100%;border-radius:12px;margin:15px 0;max-height:200px;object-fit:cover;}
+        .options{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:20px 0;}
+        select{padding:14px;border-radius:10px;background:#1e1e2e;color:#fff;border:2px solid #444;}
+        .btn-group{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:20px;}
+        .btn-dl{padding:18px;font-weight:bold;border-radius:12px;}
+        .mp4{background:linear-gradient(45deg,#00d0ff,#00ff9d);color:#000;}
+        .mp3{background:linear-gradient(45deg,#ff0088,#ff6bc7);color:#fff;}
+        .btn-dl:hover{transform:translateY(-4px);box-shadow:0 10px 20px rgba(0,0,0,0.5);}
+        .spinner{width:50px;height:50px;border:5px solid #333;border-top:5px solid #ffd700;border-radius:50%;animation:spin 1s linear infinite;margin:30px auto;}
+        @keyframes spin{to{transform:rotate(360deg);}}
+        .hidden{display:none;}
     </style>
 </head>
 <body>
     <div class="container">
         <h1>ClassicTube</h1>
-        <p class="subtitle">Premium YouTube Downloader</p>
+        <p style="text-align:center;opacity:0.8;margin-bottom:20px;">Premium YouTube Downloader</p>
 
         <div class="input-box">
-            <input type="text" id="url" placeholder="YouTube লিংক পেস্ট করো...">
-            <button class="btn-fetch" onclick="fetchInfo()">Fetch</button>
+            <input type="text" id="urlInput" placeholder="YouTube লিংক পেস্ট করো...">
+            <button onclick="fetchInfo()">Fetch</button>
         </div>
 
         <div id="loading" class="hidden">
             <div class="spinner"></div>
-            <p style="text-align:center;">ভিডিও ইনফো আনা হচ্ছে...</p>
+            <p style="text-align:center;">লোড হচ্ছে...</p>
         </div>
 
-        <div id="videoInfo" class="hidden info-card">
-            <img id="thumb" src="" alt="Thumbnail">
-            <h3 id="title">Title</h3>
-            <p id="channel">Channel</p>
+        <div id="videoInfo" class="hidden">
+            <div class="info-card">
+                <img id="thumb" src="" alt="Thumbnail">
+                <h3 id="title">Title</h3>
+                <p id="channel">Channel</p>
+            </div>
 
             <div class="options">
                 <div>
-                    <label style="display:block; margin-bottom:8px; color:#aaa;">ভিডিও কোয়ালিটি</label>
+                    <label style="display:block;margin-bottom:8px;color:#aaa;">কোয়ালিটি</label>
                     <select id="resolution">
                         <option value="2160">4K</option>
                         <option value="1440">1440p</option>
@@ -177,8 +64,8 @@
                         <option value="audio">Audio Only</option>
                     </select>
                 </div>
-                <div id="audioBitrateDiv">
-                    <label style="display:block; margin-bottom:8px; color:#aaa;">অডিও কোয়ালিটি</label>
+                <div id="audioDiv" style="display:none;">
+                    <label style="display:block;margin-bottom:8px;color:#aaa;">অডিও</label>
                     <select id="audioBitrate">
                         <option value="320">320kbps</option>
                         <option value="256">256kbps</option>
@@ -188,29 +75,30 @@
                 </div>
             </div>
 
-            <div class="checkbox">
+            <div style="text-align:center;margin:15px 0;">
                 <input type="checkbox" id="playlist">
-                <label for="playlist">পুরো প্লেলিস্ট ডাউনলোড</label>
+                <label for="playlist">পুরো প্লেলিস্ট</label>
             </div>
 
             <div class="btn-group">
-                <button class="btn-dl mp4" onclick="download('mp4')">MP4</button>
-                <button class="btn-dl mp3" onclick="download('mp3')">MP3</button>
+                <button class="btn-dl mp4" onclick="triggerDownload('mp4')">MP4 ডাউনলোড</button>
+                <button class="btn-dl mp3" onclick="triggerDownload('mp3')">MP3 ডাউনলোড</button>
             </div>
         </div>
-
-        <footer>Made with respect by <strong>Grok 4</strong></footer>
     </div>
 
     <script>
-        let videoData = {};
-        document.getElementById('resolution').addEventListener('change', function() {
-            document.getElementById('audioBitrateDiv').style.display = this.value === 'audio' ? 'block' : 'none';
+        let currentUrl = "";
+
+        document.getElementById('resolution').addEventListener('change', () => {
+            document.getElementById('audioDiv').style.display = 
+                document.getElementById('resolution').value === 'audio' ? 'block' : 'none';
         });
 
         async function fetchInfo() {
-            const url = document.getElementById('url').value.trim();
+            const url = document.getElementById('urlInput').value.trim();
             if (!url) return Swal.fire("লিংক দে!", "", "warning");
+            currentUrl = url;
 
             document.getElementById('loading').classList.remove('hidden');
             document.getElementById('videoInfo').classList.add('hidden');
@@ -221,29 +109,39 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({url})
                 });
-                videoData = await res.json();
-
-                if (videoData.title) {
-                    document.getElementById('title').textContent = videoData.title;
-                    document.getElementById('channel').textContent = videoData.channel;
-                    document.getElementById('thumb').src = videoData.thumbnail;
+                const data = await res.json();
+                if (data.title) {
+                    document.getElementById('title').textContent = data.title;
+                    document.getElementById('channel').textContent = data.channel;
+                    document.getElementById('thumb').src = data.thumbnail;
                     document.getElementById('videoInfo').classList.remove('hidden');
                 }
-            } catch {
-                Swal.fire("ভুল লিংক!", "সঠিক YouTube লিংক দাও", "error");
-            }
+            } catch { Swal.fire("ভুল লিংক!", "", "error"); }
             document.getElementById('loading').classList.add('hidden');
         }
 
-        function download(type) {
-            if (!videoData.title) return Swal.fire("প্রথমে Fetch করো!", "", "info");
+        function triggerDownload(type) {
+            if (!currentUrl) return Swal.fire("প্রথমে Fetch কর!", "", "info");
 
             const res = document.getElementById('resolution').value;
-            const bitrate = document.getElementById('audioBitrate').value;
+            const bitrate = res === 'audio' ? document.getElementById('audioBitrate').value : '192';
             const playlist = document.getElementById('playlist').checked ? '1' : '0';
 
-            const params = `?url=\( {encodeURIComponent(document.getElementById('url').value)}&type= \){type}&res=\( {res}&bitrate= \){bitrate}&playlist=${playlist}`;
-            window.open('/real_download' + params, '_blank');
+            const params = new URLSearchParams({
+                url: currentUrl,
+                type: type,
+                res: res,
+                bitrate: bitrate,
+                playlist: playlist
+            });
+
+            // এই লাইনটাই ম্যাজিক — Chrome নিচে ডাউনলোড দেখাবে!
+            const link = document.createElement('a');
+            link.href = '/real_download?' + params.toString();
+            link.download = '';  // এটা থাকলে ফোর্স ডাউনলোড হয়
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
     </script>
 </body>
