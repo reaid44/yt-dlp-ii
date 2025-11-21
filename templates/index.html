@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="bn" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClassicTube Downloader</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ClassicTube</h1>
+            <p>Premium YouTube Downloader</p>
+            <button id="themeToggle" class="theme-btn">Light Mode</button>
+        </header>
+
+        <main class="card">
+            <div class="input-group">
+                <input type="text" id="url" placeholder="YouTube লিংক পেস্ট করো..." required>
+                <button onclick="fetchInfo()" class="btn-primary">Fetch Video</button>
+            </div>
+
+            <div id="videoInfo" class="hidden">
+                <div class="thumbnail">
+                    <img id="thumb" src="" alt="Thumbnail">
+                </div>
+                <h3 id="title"></h3>
+                <p id="channel"></p>
+
+                <div class="options">
+                    <div class="select-group">
+                        <label>ভিডিও কোয়ালিটি</label>
+                        <select id="resolution">
+                            <option value="2160">4K (2160p)</option>
+                            <option value="1440">1440p</option>
+                            <option value="1080" selected>1080p (Full HD)</option>
+                            <option value="720">720p (HD)</option>
+                            <option value="480">480p</option>
+                            <option value="360">360p</option>
+                            <option value="240">240p</option>
+                            <option value="144">144p</option>
+                            <option value="audio">Audio Only (MP3)</option>
+                        </select>
+                    </div>
+
+                    <div class="select-group" id="audioGroup">
+                        <label>অডিও কোয়ালিটি</label>
+                        <select id="audioBitrate">
+                            <option value="320">320kbps (Best)</option>
+                            <option value="256">256kbps</option>
+                            <option value="192" selected>192kbps</option>
+                            <option value="128">128kbps</option>
+                            <option value="64">64kbps</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="checkbox">
+                    <input type="checkbox" id="playlist">
+                    <label for="playlist">পুরো প্লেলিস্ট ডাউনলোড করো</label>
+                </div>
+
+                <div class="btn-group">
+                    <button onclick="download('mp4')" class="btn-download">MP4 ডাউনলোড</button>
+                    <button onclick="download('mp3')" class="btn-download mp3">MP3 ডাউনলোড</button>
+                </div>
+            </div>
+
+            <div id="loading" class="hidden">
+                <div class="spinner"></div>
+                <p>প্রসেসিং হচ্ছে... একটু অপেক্ষা করো</p>
+            </div>
+        </main>
+
+        <footer>
+            Made with respect by <strong>Grok 4</strong> | Classic Never Dies
+        </footer>
+    </div>
+
+    <script>
+        let info = {};
+        const audioGroup = document.getElementById('audioGroup');
+        document.getElementById('resolution').addEventListener('change', function() {
+            audioGroup.style.display = this.value === 'audio' ? 'block' : 'none';
+        });
+
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            document.getElementById('themeToggle').textContent = isLight ? 'Dark Mode' : 'Light Mode';
+        });
+
+        async function fetchInfo() {
+            const url = document.getElementById('url').value.trim();
+            if (!url) return Swal.fire("লিংক দে আগে!", "", "warning");
+
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('videoInfo').classList.add('hidden');
+
+            try {
+                const res = await fetch('/fetch_info', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url})
+                });
+                info = await res.json();
+
+                if (info.title) {
+                    document.getElementById('title').textContent = info.title;
+                    document.getElementById('channel').textContent = info.channel;
+                    document.getElementById('thumb').src = info.thumbnail;
+                    document.getElementById('videoInfo').classList.remove('hidden');
+                }
+            } catch { Swal.fire("ভুল লিংক!", "সঠিক YouTube লিংক দাও", "error"); }
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        function download(type) {
+            const url = document.getElementById('url').value.trim();
+            const res = document.getElementById('resolution').value;
+            const bitrate = document.getElementById('audioBitrate').value;
+            const playlist = document.getElementById('playlist').checked;
+
+            if (!info.title) return Swal.fire("প্রথমে Fetch করো!", "", "info");
+
+            const params = new URLSearchParams({
+                url, type, res, bitrate: type === 'mp3' ? bitrate : '192',
+                playlist: playlist ? '1' : '0'
+            });
+            window.location.href = `/download_pro?${params}`;
+        }
+    </script>
+</body>
+  </html>
