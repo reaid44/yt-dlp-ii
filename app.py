@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_file, jsonify, redirect, url_for
+from flask import Flask, render_template, request, send_file, jsonify
 import os
 import sys
 import socket
@@ -6,17 +6,22 @@ import subprocess
 import yt_dlp
 import threading
 
+# ==================== অটো আপডেট yt-dlp ====================
+def auto_update_ytdlp():
+    print("yt-dlp চেক করা হচ্ছে... আপডেট হচ্ছে (যদি দরকার হয়)...")
+    try:
+        subprocess.check_call([
+            sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp", "--quiet"
+        ])
+        import yt_dlp as ydl
+        print(f"yt-dlp আপডেট হয়েছে → ভার্সন: {ydl.version.__version__}")
+    except Exception as e:
+        print(f"yt-dlp আপডেটে সমস্যা: {e}")
+
+# ==================== Flask Setup ====================
 app = Flask(__name__)
 DOWNLOAD_FOLDER = "downloads"
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
-
-# yt-dlp অটো আপডেট
-def auto_update_ytdlp():
-    try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp"])
-        print("yt-dlp আপডেট হয়েছে!")
-    except Exception as e:
-        print(f"yt-dlp আপডেট ফেইল: {e}")
 
 # লোকাল IP বের করা
 def get_ip():
@@ -30,7 +35,12 @@ def get_ip():
         s.close()
     return ip
 
-# ভিডিও ইনফো ফেচ করা
+# হোম পেজ
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+# ভিডিও ইনফো ফেচ
 @app.route('/fetch_info', methods=['POST'])
 def fetch_info():
     url = request.json.get('url')
@@ -44,77 +54,78 @@ def fetch_info():
             return jsonify({
                 "title": info.get("title", "Unknown Title"),
                 "channel": info.get("uploader", "Unknown Channel"),
-                "thumbnail": info.get("thumbnail", ""),
+                "thumbnail": info.get("thumbnail") or "",
                 "duration": info.get("duration", 0)
             })
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": "ভুল লিংক বা সমস্যা"}), 400
 
-# ডাউনলোড প্রো (মেইন ফিচার)
-@app.route('/download_pro')
-def download_pro():
+# মূল ডাউনলোড রুট (এটাই ১০০% কাজ করে)
+@app.route('/real_download')
+def real_download():
     url = request.args.get('url')
-    type_ = request.args.get('type')  # mp4 or mp3
-    res = request.args.get('res', '1080')
+    type_ = request.args.get('type')        # mp4 or mp3
+    res = request.args.get('res', '1080')   # 1080, 720, audio ইত্যাদি
     bitrate = request.args.get('bitrate', '192')
     playlist = request.args.get('playlist') == '1'
 
     if not url:
         return "URL নাই!", 400
 
-    # ফরম্যাট সিলেক্ট
+    # ফরম্যাট সিলেক্ট করা
     if type_ == 'mp3' or res == 'audio':
-        format_selector = 'bestaudio/best'
+        format_str = 'bestaudio/best'
         postprocessors = [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
             'preferredquality': bitrate,
         }]
+        merge_format = None
     else:
         height = res if res.isdigit() else 1080
-        format_selector = f'bestvideo[height<={height}]+bestaudio/bestvideo[height<={height}]/best'
+        format_str = f'bestvideo[height<={height}]+bestaudio/bestvideo[height<={height}]/best'
         postprocessors = []
+        merge_format = 'mp4'
 
     ydl_opts = {
-        'format': format_selector,
+        'format': format_str,
         'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
         'noplaylist': not playlist,
+        'merge_output_format': merge_format,
         'postprocessors': postprocessors,
-        'quiet': False,
-        'no_warnings': False,
     }
 
-    def start_download():
+    try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
 
-    # ব্যাকগ্রাউন্ডে ডাউনলোড চালু
-    threading.Thread(target=start_download, daemon=True).start()
+            # MP3 হলে ফাইল এক্সটেনশন ঠিক করা
+            if type_ == 'mp3' or res == 'audio':
+                filename = filename.rsplit('.', 1)[0] + '.mp3'
 
-    return """
-    <h2 style="text-align:center; color:#ffd700; font-family:sans-serif; margin-top:50px;">
-    ডাউনলোড শুরু হয়েছে!
-    </h2>
-    <p style="text-align:center; color:#aaa;">
-    ফাইল সেভ হচ্ছে <b>downloads</b> ফোল্ডারে।<br><br>
-    <a href="/" style="color:#00d0ff; text-decoration:underline;">← হোমে ফিরে যাও</a>
-    </p>
-    <script>setTimeout(() => window.location.href = '/', 5000);</script>
-    """
+            # ফাইল পাঠানো
+            return send_file(
+                filename,
+                as_attachment=True,
+                download_name=os.path.basename(filename)
+            )
+    except Exception as e:
+        return f"<h2>এরর: {str(e)}</h2>", 500
 
-@app.route('/')
-def index():
-    return render_template('index.html')
-
+# ==================== সার্ভার চালু ====================
 if __name__ == "__main__":
-    auto_update_ytdlp()
+    auto_update_ytdlp()  # প্রতিবার চালালেই আপডেট চেক করবে
     ip = get_ip()
-    print(f"\nServer চালু হয়েছে → http://{ip}:5000")
+    print(f"\nClassicTube চালু হয়েছে!")
+    print(f"লিংক: http://{ip}:5000")
+    print(f"ফাইল সেভ হবে: downloads ফোল্ডারে\n")
+
     try:
         with open("/sdcard/flask_ip.txt", "w") as f:
-            f.write(ip)
+            f.write(f"http://{ip}:5000")
         print("IP সেভ হয়েছে /sdcard/flask_ip.txt এ")
     except:
         pass
 
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
