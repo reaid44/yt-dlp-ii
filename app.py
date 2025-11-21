@@ -1,22 +1,35 @@
+import os
+import sys
+import socket
+import subprocess
+
 from flask import Flask, request, send_file, jsonify
-import os, sys, subprocess, socket
 import yt_dlp
 
-# ✅ yt-dlp auto-update
+
+# ==================== yt-dlp auto-update ====================
 def auto_update_ytdlp():
+    """Update yt-dlp automatically when server starts."""
     try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp"])
+        subprocess.check_call([
+            sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp"
+        ])
         import yt_dlp.version
         print(f"yt-dlp updated to version: {yt_dlp.version.__version__}")
     except Exception as e:
         print(f"yt-dlp auto-update failed: {e}")
 
+
+# ==================== Flask setup ====================
 app = Flask(__name__)
 DOWNLOAD_DIR = "downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 last_files = {}
 
+
+# ==================== IP helper ====================
 def get_ip():
+    """Return local IP address for server info."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(("8.8.8.8", 80))
@@ -27,12 +40,46 @@ def get_ip():
         s.close()
     return ip
 
-# ==================== VIDEO/AUDIO DOWNLOAD ====================
-@app.route("/download", methods=["POST"])
-def download():
+
+# ==================== Routes ====================
+@app.route("/")
+def home():
+    return "Server is active! Use /download API."
+
+
+@app.route("/fetch_info", methods=["POST"])
+def fetch_info():
+    """Fetch video info (title, channel, thumbnail, duration)."""
     data = request.get_json(force=True) or {}
     url = data.get("url")
-    type_ = data.get("type", "mp4")        # mp4 বা mp3
+    if not url:
+        return jsonify({"error": "URL required"}), 400
+
+    try:
+        ydl_opts = {
+            "quiet": True,
+            "no_warnings": True,
+            "noplaylist": True,
+            "extractor_args": {"youtube": {"player_client": ["default"]}},
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            return jsonify({
+                "title": info.get("title", "Unknown Title"),
+                "channel": info.get("uploader", "Unknown Channel"),
+                "thumbnail": info.get("thumbnail") or "",
+                "duration": info.get("duration", 0)
+            })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/download", methods=["POST"])
+def download():
+    """Download video or audio with resolution/bitrate options."""
+    data = request.get_json(force=True) or {}
+    url = data.get("url")
+    type_ = data.get("type", "mp4").lower()      # mp4 বা mp3
     res = str(data.get("res", "1080")).strip()   # ভিডিও resolution
     bitrate = str(data.get("bitrate", "192")).strip()  # অডিও bitrate
 
@@ -79,9 +126,16 @@ def download():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ==================== RUN SERVER ====================
+
+# ==================== Run server ====================
 if __name__ == "__main__":
     auto_update_ytdlp()
     ip = get_ip()
-    print(f"Server running at: http://{ip}:5000")
+    print(f"Flask server running at: http://{ip}:5000")
+    try:
+        with open("/sdcard/flask_ip.txt", "w") as f:
+            f.write(f"http://{ip}:5000")
+        print("IP written to /sdcard/flask_ip.txt")
+    except Exception as e:
+        print(f"Could not write IP: {e}")
     app.run(debug=True, host="0.0.0.0", port=5000)
