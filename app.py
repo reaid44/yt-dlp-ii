@@ -4,7 +4,6 @@ import sys
 import socket
 import subprocess
 import yt_dlp
-import threading
 
 # ==================== অটো আপডেট yt-dlp ====================
 def auto_update_ytdlp():
@@ -60,58 +59,46 @@ def fetch_info():
     except Exception as e:
         return jsonify({"error": "ভুল লিংক বা সমস্যা"}), 400
 
-# মূল ডাউনলোড রুট (এটাই ১০০% কাজ করে)
+# ==================== মূল ডাউনলোড রুট (শুধু picture) ====================
 @app.route('/real_download')
 def real_download():
     url = request.args.get('url')
-    type_ = request.args.get('type')        # mp4 or mp3
-    res = request.args.get('res', '1080')   # 1080, 720, audio ইত্যাদি
-    bitrate = request.args.get('bitrate', '192')
+    type_ = request.args.get('type')        # এখন শুধু 'picture' ধরব
     playlist = request.args.get('playlist') == '1'
 
     if not url:
         return "URL নাই!", 400
 
-    # ফরম্যাট সিলেক্ট করা
-    if type_ == 'mp3' or res == 'audio':
-        format_str = 'bestaudio/best'
-        postprocessors = [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': bitrate,
-        }]
-        merge_format = None
+    if type_ == 'picture':
+        ydl_opts = {
+            'skip_download': True,   # ভিডিও/অডিও নামবে না
+            'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
+            'noplaylist': not playlist,
+            'writethumbnail': True,  # thumbnail ডাউনলোড করবে
+        }
+
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+
+                # thumbnail ফাইল লোকেশন বের করা
+                thumb_file = None
+                if 'thumbnails' in info and info['thumbnails']:
+                    base = ydl.prepare_filename(info)
+                    thumb_file = base.rsplit('.', 1)[0] + ".jpg"
+
+                if thumb_file and os.path.exists(thumb_file):
+                    return send_file(
+                        thumb_file,
+                        as_attachment=True,
+                        download_name=os.path.basename(thumb_file)
+                    )
+                else:
+                    return "<h2>Thumbnail পাওয়া যায়নি</h2>", 404
+        except Exception as e:
+            return f"<h2>এরর: {str(e)}</h2>", 500
     else:
-        height = res if res.isdigit() else 1080
-        format_str = f'bestvideo[height<={height}]+bestaudio/bestvideo[height<={height}]/best'
-        postprocessors = []
-        merge_format = 'mp4'
-
-    ydl_opts = {
-        'format': format_str,
-        'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
-        'noplaylist': not playlist,
-        'merge_output_format': merge_format,
-        'postprocessors': postprocessors,
-    }
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
-
-            # MP3 হলে ফাইল এক্সটেনশন ঠিক করা
-            if type_ == 'mp3' or res == 'audio':
-                filename = filename.rsplit('.', 1)[0] + '.mp3'
-
-            # ফাইল পাঠানো
-            return send_file(
-                filename,
-                as_attachment=True,
-                download_name=os.path.basename(filename)
-            )
-    except Exception as e:
-        return f"<h2>এরর: {str(e)}</h2>", 500
+        return jsonify({"error": "শুধু picture সাপোর্ট করা হচ্ছে"}), 400
 
 # ==================== সার্ভার চালু ====================
 if __name__ == "__main__":
